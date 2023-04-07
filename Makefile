@@ -1,28 +1,35 @@
 CC=gcc
+CC_WIN=x86_64-w64-mingw32-gcc
 CFLAGS=-I./include
 OBJ=main.o src/net.o
+OBJ_WIN=main_win.o src/net_win.o
 
-EXE_LINUX=chimera
-EXE_WINDOWS=chimera.exe
+EXE=chimera
+EXE_WIN=chimera.exe
 
 ifeq ($(OS),Windows_NT)
-    CROSS_COMPILE=x86_64-w64-mingw32-
     RM=del /Q
 else
-    CROSS_COMPILE=
     RM=rm -f
 endif
 
 all: linux windows
 
-linux: $(OBJ)
-	$(CC) -o $(EXE_LINUX) $(OBJ) $(CFLAGS)
+linux: $(EXE)
 
-windows: $(OBJ)
-	$(CROSS_COMPILE)$(CC) -o $(EXE_WINDOWS) $(OBJ) $(CFLAGS)
+windows: $(EXE_WIN)
+
+$(EXE): $(OBJ)
+	$(CC) -o $@ $^ $(CFLAGS)
+
+$(EXE_WIN): $(OBJ_WIN)
+	$(CC_WIN) -o $@ $^ $(CFLAGS) -lws2_32 -pthread
 
 %.o: %.c
 	$(CC) -c -o $@ $< $(CFLAGS)
 
+%_win.o: %.c
+	$(CC_WIN) -c -o $@ $< $(CFLAGS)
+
 clean:
-	$(RM) $(EXE_LINUX) $(EXE_WINDOWS) $(OBJ)
+	$(RM) $(EXE) $(EXE_WIN) $(OBJ) $(OBJ_WIN)

