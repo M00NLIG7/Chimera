@@ -5,6 +5,7 @@
 #include <stdlib.h>
 #include <string.h>
 #include <errno.h>
+#include <unistd.h>
 
 #define MAX_BUF_SIZE 1024
 #define MAX_COMMAND_SIZE 256

