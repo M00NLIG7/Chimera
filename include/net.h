@@ -7,6 +7,7 @@
 #include <errno.h>
 #include <unistd.h>
 
+
 #define MAX_BUF_SIZE 1024
 #define MAX_COMMAND_SIZE 256
 
@@ -22,9 +23,10 @@
     #define PCLOSE pclose
     #ifdef __x86_64__
         #define WIN_EXE_PATH "./bin/linux64/winexe"
-        #define SSH_PASS_PATH "./bin/linux64/sshpass"
+        #define SSHPASS_PATH "./bin/linux64/sshpass"
     #else
         #define WIN_EXE_PATH "./bin/linux32/winexe"
+        #define SSHPASS_PATH "./bin/linux32/sshpass"
     #endif
 #endif
 

