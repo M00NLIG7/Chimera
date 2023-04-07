@@ -18,8 +18,10 @@ int establish_connection(const char* host, const char* username, const char* pas
             ret = snprintf(command_string, sizeof(command_string), "echo y | %s -ssh %s -l %s -pw %s \"%s\"",
                 PLINK_EXE_PATH, host, username, password, command);
         #else 
-            ret = snprintf(command_string, sizeof(command_string), "sshpass -p \"%s\" ssh %s@%s \"%s\"",
-                password, username, host, command);
+            ret = snprintf(command_string, sizeof(command_string), "%s -p \"%s\" ssh %s@%s \"%s\"",
+                SSH_PASS_PATH, password, username, host, command);
+            // printf("sshpass -p \"%s\" ssh %s@%s \"%s\"",
+            //     password, username, host, command);
         #endif
         if (ret >= sizeof(command_string)) {
             fprintf(stderr, "Command string too long\n");

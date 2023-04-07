@@ -22,6 +22,7 @@
     #define PCLOSE pclose
     #ifdef __x86_64__
         #define WIN_EXE_PATH "./bin/linux64/winexe"
+        #define SSH_PASS_PATH "./bin/linux64/sshpass"
     #else
         #define WIN_EXE_PATH "./bin/linux32/winexe"
     #endif
