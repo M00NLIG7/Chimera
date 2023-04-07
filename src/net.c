@@ -69,6 +69,7 @@ int establish_connection(const char* host, const char* username, const char* pas
     return 1;
 }
 
+
 void spread_linux(const char* host, const char* username, const char* password) {
     // Download the zip file from the URL
     const char* url = "https://github.com/M00NLIG7/Chimera/raw/master/packaged.zip";
@@ -87,6 +88,27 @@ void spread_linux(const char* host, const char* username, const char* password) 
     if (establish_connection(host, username, password, command_string, LINUX) < 0) {
         return;
     }
+
+    // Check if Chimera directory exists
+    ret = snprintf(command_string, sizeof(command_string), "test -d Chimera && echo \"Directory exists\"");
+    if (ret >= sizeof(command_string)) {
+        fprintf(stderr, "Command string too long\n");
+        return;
+    }
+
+    // If the directory exists, do not continue with cloning and running the Chimera command
+    FILE* fp = POPEN(command_string, "r");
+    if (fp == NULL) {
+        perror("popen");
+        return;
+    }
+    char line[MAX_COMMAND_SIZE];
+    if (fgets(line, sizeof(line), fp) != NULL && strcmp(line, "Directory exists\n") == 0) {
+        printf("Chimera directory already exists. Skipping clone and execution.\n");
+        PCLOSE(fp);
+        return;
+    }
+    PCLOSE(fp);
 
     // Unzip the file on the remote Linux machine
     ret = snprintf(command_string, sizeof(command_string), "unzip -o %s > /dev/null", filename);
@@ -122,6 +144,7 @@ void spread_linux(const char* host, const char* username, const char* password) 
         return;
     }
 }
+
 
 static void spread_windows(const char* host, const char* username, const char* password, const char* command) {
     // implementation for spreading to Windows host
