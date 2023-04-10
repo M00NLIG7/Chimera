@@ -1,31 +1,77 @@
+#include <stdio.h>
+#include <string.h>
 #include "net.h"
 
-// #include <stdio.h>
-// #include <time.h>
+// int main() {
+//     spread_linux("192.168.1.32", "root", "password123");
+// }-
 
-int main() {
-    spread("192.168.1", "password");
+void print_usage() {
+    printf("Usage: chimera [OPTIONS]\n");
+    printf("Options:\n");
+    printf("  -h, --help\t\tPrints this help message and exits.\n");
+    printf("  -s, --spread <subnet>\tSpread Chimera to hosts on the specified subnet.\n");
+    printf("  -p, --password <password>\tThe password to use for the connection.\n");
+    printf("  --establish-node <ip>\t\tEstablish a connection to the specified node.\n");
 }
 
+int main(int argc, char* argv[]) {
+    char* subnet = NULL;
+    char* password = NULL;
+    char* establish_node_ip = NULL;
 
-// int main() {
-//     struct timeval start, end;
-//     double time_used;
+    // Parse command line arguments
+    for (int i = 1; i < argc; i++) {
+        if (strcmp(argv[i], "-h") == 0 || strcmp(argv[i], "--help") == 0) {
+            print_usage();
+            return 0;
+        } else if (strcmp(argv[i], "-s") == 0 || strcmp(argv[i], "--spread") == 0) {
+            if (i + 1 < argc) {
+                subnet = argv[i + 1];
+                i++;
+            } else {
+                fprintf(stderr, "Error: -s/--spread option requires an argument\n");
+                print_usage();
+                return 1;
+            }
+        } else if (strcmp(argv[i], "-p") == 0 || strcmp(argv[i], "--password") == 0) {
+            if (i + 1 < argc) {
+                password = argv[i + 1];
+                i++;
+            } else {
+                fprintf(stderr, "Error: -p/--password option requires an argument\n");
+                print_usage();
+                return 1;
+            }
+        } else if (strcmp(argv[i], "--establish-node") == 0) {
+            if (i + 1 < argc) {
+                establish_node_ip = argv[i + 1];
+                i++;
+            } else {
+                fprintf(stderr, "Error: --establish-node option requires an argument\n");
+                print_usage();
+                return 1;
+            }
+        } else {
+            fprintf(stderr, "Error: Invalid command line argument %s\n", argv[i]);
+            print_usage();
+            return 1;
+        }
+    }
 
-//     gettimeofday(&start, NULL);
-//     // code to time here
-//     spread("192.168.1", "password");
+    // Check if the user wants to spread Chimera or establish a connection to a node
+    if (subnet != NULL && password != NULL) {
+        printf("Spreading Chimera to hosts on subnet %s with password %s\n", subnet, password);
+        
+        spread(subnet, password);
+    } else if (establish_node_ip != NULL) {
+        printf("Establishing connection with remote node: %s\n", establish_node_ip);
+        //establish_node(establish_node_ip);
+    } else {
+        fprintf(stderr, "Error: Invalid command line arguments\n");
+        print_usage();
+        return 1;
+    }
 
-//     gettimeofday(&end, NULL);
-
-//     time_used = (end.tv_sec - start.tv_sec) + (double) (end.tv_usec - start.tv_usec) / 1000000;
-//     printf("Time used: %f seconds\n", time_used);
-
-//     return 0;
-// }
-
-// 1.098728
-// 5.087897
-// 25.079487
-// 50.068203
-// 100.064031
+    return 0;
+}

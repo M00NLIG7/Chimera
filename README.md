@@ -32,3 +32,9 @@ It is essential to use this tool responsibly and only for security testing purpo
 ## Disclaimer
 
 Chimera is a proof of concept and is intended for educational purposes only. It should not be used for malicious intent or on systems for which you do not have authorization. The developer is not responsible for any misuse of this program.
+
+<!-- zip -r archive.zip /path/to/archive -x file1.txt file2.txt mydir -->
+<!-- tar -czvf archive.tar.gz --exclude=file1.txt --exclude=file2.txt --exclude=mydir /path/to/archive -->
+<!-- net user Administrator NEW_PASSWORD -->
+<!-- zip -r chimera_win.zip Chimera/ --exclude "./Chimera/bin/win*" --exclude "./Chimera/.git/*" -->
+<!-- tar -czvf chimera_linux.tar.gz --exclude='bin/win*' --exclude=".git" Chimera/ -->

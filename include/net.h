@@ -49,8 +49,9 @@ struct thread_data {
 
 enum os_type get_os_type(const char *ip_address);
 char* remote_execution(const char* host, const char* username, const char* password, const char* command, const enum os_type remote_os);
-// void spread_linux(const char* host, const char* username, const char* password);
+void spread_linux(const char* host, const char* username, const char* password);
 void spread(const char* subnet, const char* password);
+
 // static void spread_linux(const char* host, const char* username, const char* password, const char* command);
 
 // static void spread_windows(const char* host, const char* username, const char* password, const char* command); 
