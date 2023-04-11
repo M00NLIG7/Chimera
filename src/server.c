@@ -1,32 +1,10 @@
-#include <arpa/inet.h>
-#include <netinet/in.h>
-#include <stdio.h>
-#include <stdlib.h>
-#include <string.h>
-#include <sys/socket.h>
-#include <unistd.h>
+#include "server.h"
 
-#define SERVER_PORT 12345
-#define BUFFER_SIZE 1024
-
-int main() {
-  int sockfd, newsockfd;
-  struct sockaddr_in serv_addr, cli_addr;
-  socklen_t clilen;
-  char buffer[BUFFER_SIZE];
-
-  sockfd = socket(AF_INET, SOCK_STREAM, 0);
-  memset(&serv_addr, 0, sizeof(serv_addr));
-  serv_addr.sin_family = AF_INET;
-  serv_addr.sin_addr.s_addr = INADDR_ANY;
-  serv_addr.sin_port = htons(SERVER_PORT);
-
-  bind(sockfd, (struct sockaddr *)&serv_addr, sizeof(serv_addr));
-  listen(sockfd, 5);
-  clilen = sizeof(cli_addr);
-
-  while (1) {
-    newsockfd = accept(sockfd, (struct sockaddr *)&cli_addr, &clilen);
+void *handle_client(void *arg) {
+    connection_t *conn = (connection_t *) arg;
+    int newsockfd = conn->sockfd;
+    struct sockaddr_in cli_addr = conn->cli_addr;
+    char buffer[BUFFER_SIZE];
     memset(buffer, 0, BUFFER_SIZE);
     recv(newsockfd, buffer, BUFFER_SIZE - 1, 0);
 
@@ -42,7 +20,6 @@ int main() {
     sscanf(buffer, "{\"hostname\": \" %31[^\"] \",\"cpu\": {\"model\": \" %31[^\"] \", \"cores\": %d },\"memory\": {\"total\": %d , \"used\": %d , \"free\": %d },\"disk\": {\"total\": %d , \"used\": %d , \"available\": %d }}",
         hostname, cpu_model, &cpu_cores, &memory_total, &memory_used, &memory_free, &disk_total, &disk_used, &disk_available);
 
-
     printf("Client IP: %s\n", client_ip);
     printf("Hostname: %s\n", hostname);
     printf("CPU Model: %s\n", cpu_model);
@@ -54,8 +31,51 @@ int main() {
     printf("Disk Used: %d MB\n", disk_used);
     printf("Disk Available: %d MB\n", disk_available);
     printf("-----------------------------\n");
-  }
 
-  close(sockfd);
-  return 0;
+    close(newsockfd);
+    free(conn);
+    pthread_exit(NULL);
+}
+
+void start_server() {
+    int sockfd;
+    struct sockaddr_in serv_addr;
+    socklen_t clilen;
+    pthread_t tid;
+    connection_t *conn;
+
+    sockfd = socket(AF_INET, SOCK_STREAM, 0);
+    // Set socket to non-blocking mode
+    fcntl(sockfd, F_SETFL, O_NONBLOCK);
+
+    memset(&serv_addr, 0, sizeof(serv_addr));
+    serv_addr.sin_family = AF_INET;
+    serv_addr.sin_addr.s_addr = INADDR_ANY;
+    serv_addr.sin_port = htons(SERVER_PORT);
+
+    bind(sockfd, (struct sockaddr *)&serv_addr, sizeof(serv_addr));
+    listen(sockfd, 5);
+    clilen = sizeof(struct sockaddr_in);
+
+    while (1) {
+      conn = (connection_t *) malloc(sizeof(connection_t));
+      int newsockfd = accept(sockfd, (struct sockaddr *)&conn->cli_addr, &clilen);
+      if (newsockfd < 0) {
+          // Free the memory allocated for the conn variable
+          free(conn);
+          if (errno == EWOULDBLOCK) {
+              // No pending connections, sleep for a while
+              usleep(1000);
+              continue;
+          } else {
+              perror("accept");
+              break;
+          }
+      }
+      conn->sockfd = newsockfd;
+      pthread_create(&tid, NULL, handle_client, (void *) conn);
+      pthread_detach(tid);
+    }
+
+    close(sockfd);
 }

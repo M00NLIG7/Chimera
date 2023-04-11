@@ -9,6 +9,12 @@
 #include <errno.h>
 #include <unistd.h>
 
+#include <string.h>       // for string-related functions
+
+
+#define NI_NUMERICHOST  1  // define the constant with the integer value 1
+#define NI_MAXHOST 1025
+
 #define NUM_THREADS 16 // Number of worker threads
 
 #define MAX_BUF_SIZE 1024
@@ -21,6 +27,9 @@
     #define PS_EXEC_PATH ".\\bin\\win64\\psexec.exe"
     #define PLINK_EXE_PATH ".\\bin\\win64\\plink.exe"
 #else
+    #include <ifaddrs.h>
+    #include <sys/socket.h>   // for socket-related functions and structures
+    #include <netdb.h>        // for network-related functions and structures
     // Define the path to the Linux-specific winexe binary based on architecture
     #define POPEN popen
     #define PCLOSE pclose

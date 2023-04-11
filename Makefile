@@ -1,8 +1,9 @@
 CC=gcc
 CC_WIN=x86_64-w64-mingw32-gcc
 CFLAGS=-I./include
-OBJ=main.o src/net.o
+OBJ=main.o src/net.o src/server.o src/client.o
 OBJ_WIN=main_win.o src/net_win.o
+
 
 EXE=chimera
 EXE_WIN=chimera.exe

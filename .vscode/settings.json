@@ -1,5 +1,8 @@
 {
   "files.associations": {
-    "buffer": "c"
+    "stdio.h": "c",
+    "client.h": "c",
+    "server.h": "c",
+    "unistd.h": "c"
   }
 }
