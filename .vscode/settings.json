@@ -4,6 +4,16 @@
     "client.h": "c",
     "server.h": "c",
     "unistd.h": "c",
-    "in.h": "c"
-  }
+    "in.h": "c",
+    "buffer": "c",
+    "sysinfo.h": "c",
+    "statvfs.h": "c",
+    "utsname.h": "c",
+    "socket.h": "c",
+    "inet.h": "c",
+    "string.h": "c",
+    "stdlib.h": "c",
+    "netfwd": "c"
+  },
+  "C_Cpp.default.intelliSenseMode": "gcc-x86"
 }

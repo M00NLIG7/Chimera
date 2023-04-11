@@ -6,50 +6,6 @@ typedef struct ThreadData {
     const char* password;
 } ThreadData;
 
-#if __linux__
-    char* get_lan_ip() {
-        struct ifaddrs *ifaddr, *ifa;
-        int family, s, n;
-        char host[NI_MAXHOST];
-        char *lan_ip = NULL;
-
-        if (getifaddrs(&ifaddr) == -1) {
-            perror("getifaddrs");
-            return NULL;
-        }
-
-        for (ifa = ifaddr, n = 0; ifa != NULL; ifa = ifa->ifa_next, n++) {
-            if (ifa->ifa_addr == NULL) {
-                continue;
-            }
-
-            family = ifa->ifa_addr->sa_family;
-
-            if (family == AF_INET || family == AF_INET6) {
-                s = getnameinfo(ifa->ifa_addr, (family == AF_INET) ? sizeof(struct sockaddr_in) : sizeof(struct sockaddr_in6),
-                                host, NI_MAXHOST, NULL, 0, NI_NUMERICHOST);
-
-                if (s == 0) {
-                    // Check if IP address is in private IP address range
-                    if ((family == AF_INET && (strncmp(host, "10.", 3) == 0 || strncmp(host, "172.", 4) == 0 || strncmp(host, "192.168.", 8) == 0)) ||
-                        (family == AF_INET6 && (strncmp(host, "fd", 2) == 0))) {
-                        lan_ip = strdup(host);
-                        break;
-                    }
-                } else {
-                    printf("getnameinfo() failed: %s\n", gai_strerror(s));
-                }
-            }
-
-        }
-
-        freeifaddrs(ifaddr);
-        // printf("IP: %s\n", lan_ip);
-
-        return lan_ip;
-    }
-#endif
-
 void* spread_worker(void* data) {
     ThreadData* thread_data = (ThreadData*)data;
     int index = thread_data->index;
@@ -239,7 +195,7 @@ void spread_linux(const char* host, const char* username, const char* password) 
 
         #if __linux__
         // Run the command on the remote Linux machine
-            ret = snprintf(command_string, sizeof(command_string), "cd Chimera && ./chimera --establish-node %s", get_lan_ip());
+            ret = snprintf(command_string, sizeof(command_string), "cd Chimera && ./chimera --establish-node %s", host);
         #else
             // This is nothing but the compiler
             ret = snprintf(command_string, sizeof(command_string), "cd Chimera && ./chimera --establish-node");
