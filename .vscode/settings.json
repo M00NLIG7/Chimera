@@ -3,6 +3,7 @@
     "stdio.h": "c",
     "client.h": "c",
     "server.h": "c",
-    "unistd.h": "c"
+    "unistd.h": "c",
+    "in.h": "c"
   }
 }

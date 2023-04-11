@@ -12,9 +12,12 @@
 #include <unistd.h>
 #include <fcntl.h>
 #include <errno.h>
+#include <signal.h>
 
 #define SERVER_PORT 12345
 #define BUFFER_SIZE 1024
+
+
 
 typedef struct {
     int sockfd;

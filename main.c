@@ -16,10 +16,15 @@ void *spread_thread_with_password(void *args) {
     return NULL;
 }
 
+
+pthread_mutex_t mutex = PTHREAD_MUTEX_INITIALIZER;
+
 #if __linux__
     // Helper function to run start_server
     void *start_server_thread(void *args) {
+        pthread_mutex_lock(&mutex);
         start_server();
+        pthread_mutex_unlock(&mutex);
         return NULL;
     }
 #endif

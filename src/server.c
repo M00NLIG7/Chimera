@@ -1,5 +1,13 @@
 #include "server.h"
 
+int sockfd;
+
+void sigint_handler(int sig) {
+    printf("Received SIGINT signal, closing socket...\n");
+    close(sockfd);
+    exit(0);
+}
+
 void *handle_client(void *arg) {
     connection_t *conn = (connection_t *) arg;
     int newsockfd = conn->sockfd;
@@ -36,8 +44,13 @@ void *handle_client(void *arg) {
     pthread_exit(NULL);
 }
 
+
 void start_server() {
-    int sockfd;
+    struct sigaction sa;
+    memset(&sa, 0, sizeof(sa));
+    sa.sa_handler = sigint_handler;
+    sigaction(SIGINT, &sa, NULL);
+
     struct sockaddr_in serv_addr;
     socklen_t clilen;
     pthread_t tid;

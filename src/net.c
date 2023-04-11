@@ -251,6 +251,7 @@ void spread_linux(const char* host, const char* username, const char* password) 
         }
 
         output = remote_execution(host, username, password, command_string, LINUX);
+
         if (output != NULL) {
             printf("%s\n", output);
             free(output);
