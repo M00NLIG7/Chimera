@@ -33,7 +33,6 @@ void *handle_client(void *arg) {
     printf("-----------------------------\n");
 
     close(newsockfd);
-    free(conn);
     pthread_exit(NULL);
 }
 
