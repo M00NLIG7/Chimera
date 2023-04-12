@@ -10,12 +10,12 @@
 #include <tchar.h>
 #include <intrin.h>
 #else
+#include <cpuid.h>
 #include <unistd.h>
 #include <sys/utsname.h>
 #include <sys/sysinfo.h>
 #include <sys/statvfs.h>
 #endif
-
 
 void evil_fetch();
 #endif /* CLIENT_H */

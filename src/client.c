@@ -1,5 +1,28 @@
 #include "client.h"
 
+
+
+void get_cpu_model(char *cpu_model) {
+    int cpu_info[4] = {0};
+
+#if defined(_WIN32)
+    __cpuid(cpu_info, 0x80000002);
+    memcpy(cpu_model, cpu_info, sizeof(cpu_info));
+    __cpuid(cpu_info, 0x80000003);
+    memcpy(cpu_model + 16, cpu_info, sizeof(cpu_info));
+    __cpuid(cpu_info, 0x80000004);
+    memcpy(cpu_model + 32, cpu_info, sizeof(cpu_info));
+#else
+    __cpuid(0x80000002, cpu_info[0], cpu_info[1], cpu_info[2], cpu_info[3]);
+    memcpy(cpu_model, cpu_info, sizeof(cpu_info));
+    __cpuid(0x80000003, cpu_info[0], cpu_info[1], cpu_info[2], cpu_info[3]);
+    memcpy(cpu_model + 16, cpu_info, sizeof(cpu_info));
+    __cpuid(0x80000004, cpu_info[0], cpu_info[1], cpu_info[2], cpu_info[3]);
+    memcpy(cpu_model + 32, cpu_info, sizeof(cpu_info));
+#endif
+    cpu_model[48] = '\0';
+}
+
 char *get_system_info() {
     char hostname[256];
 #if defined(_WIN32)
@@ -10,6 +33,8 @@ char *get_system_info() {
 #endif
 
     int cpu_cores;
+    char cpu_model[49];
+
     unsigned long long total_memory;
     unsigned long long used_memory;
     unsigned long long free_memory;
@@ -53,18 +78,17 @@ char *get_system_info() {
     disk_used = disk_total - disk_free;
     disk_available = (vfs.f_bavail * vfs.f_frsize) / (1024 * 1024);
 #endif
-
+    get_cpu_model(cpu_model);
     char *json_data = (char *)malloc(1024 * sizeof(char));
     snprintf(json_data, 1024,
              "{"
              "\"hostname\": \"%s\","
-             "\"cpu\": {\"cores\": %d},"
+             "\"cpu\": {\"model\": \"%s\", \"cores\": %d},"
              "\"memory\": {\"total\": %llu, \"used\": %llu, \"free\": %llu},"
              "\"disk\": {\"total\": %llu, \"used\": %llu, \"available\": %llu}"
              "}",
-             hostname, cpu_cores, total_memory, used_memory, free_memory,
+             hostname, cpu_model, cpu_cores, total_memory, used_memory, free_memory,
              disk_total, disk_used, disk_available);
-
     return json_data;
 }
 

