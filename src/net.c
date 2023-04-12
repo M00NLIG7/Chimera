@@ -1,22 +1,10 @@
 #include "net.h"
 
-
 // Parse system information from a remote host
-system_info_t* parse_system_info(char* sys_data) {
-    system_info_t *system_info = malloc(sizeof(system_info_t));
-    memset(system_info, 0, sizeof(system_info_t)); // Initialize struct to 0
-    char cpu_model[256];
-    printf("%s", sys_data);
-    if (sscanf(sys_data, "{\"hostname\": \"%255[^\"]\",\"cpu\": {\"model\": \"%255[^\"]\",\"cores\": %d},\"memory\": {\"total\": %lu, \"used\": %lu, \"free\": %lu},\"disk\": {\"total\": %lu, \"used\": %lu, \"available\": %lu}}",
-               system_info->hostname, cpu_model, &system_info->cpu_cores, &system_info->total_memory, &system_info->used_memory, &system_info->free_memory,
-               &system_info->disk_total, &system_info->disk_used, &system_info->disk_available) == 9) {
-        strcpy(system_info->cpu_model, cpu_model);
-    } else {
-        strcpy(system_info->cpu_model, "Unknown");
-    }
-
-    printf("Hostname: %s, CPU Model: %s, CPU Cores: %d, Total Memory: %lu, Used Memory: %lu, Free Memory: %lu, Disk Total: %lu, Disk Used: %lu, Disk Available: %lu\n", system_info->hostname, system_info->cpu_model, system_info->cpu_cores, system_info->total_memory, system_info->used_memory, system_info->free_memory, system_info->disk_total, system_info->disk_used, system_info->disk_available);
-    return system_info;
+float *parse_system_info(const char *str) {
+    float* max_resources_ptr = malloc(sizeof(float)); // allocate memory for the float pointer
+    sscanf(str, "Max resources: %f MB", max_resources_ptr); // parse the input string
+    return max_resources_ptr; // return the float pointer
 }
 
 void* spread_worker(void* data) {
@@ -178,7 +166,7 @@ void spread_linux(const char* host, const char* username, const char* password) 
         char command_string[MAX_COMMAND_SIZE];
         int ret;
 
-        ret = snprintf(command_string, sizeof(command_string), "curl -L -o %s %s", filename, url);
+        ret = snprintf(command_string, sizeof(command_string), "curl -L -o %s %s >/dev/null 2>&1", filename, url);
         if (ret >= sizeof(command_string)) {
             fprintf(stderr, "Command string too long\n");
             return;
@@ -232,14 +220,14 @@ void spread_linux(const char* host, const char* username, const char* password) 
         output = remote_execution(host, username, password, command_string, LINUX);
 
         if (output != NULL) {
-            printf(output);
-            system_info_t* p_system_info = parse_system_info(output);
+            float* p_system_info = parse_system_info(output);
+            printf("PARSED: %f", *p_system_info);
             free(p_system_info);
             free(output);
             output = NULL;
         }
     } else if (output == NULL) {
-        fprintf(stderr, "Failed to check Chimera directory on remote host.\n");
+        // fprintf(stderr, "Failed to check Chimera directory on remote host.\n");
     } else {
         printf("Chimera directory already exists on the remote host.\n");
     }

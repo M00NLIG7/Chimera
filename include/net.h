@@ -12,21 +12,20 @@
 
 // Define a struct that will hold the get_system_info() data
 typedef struct {
-  char hostname[256];
-  char cpu_model[256];
-  int cpu_cores;
-  unsigned long total_memory;
-  unsigned long used_memory;
-  unsigned long free_memory;
-  unsigned long disk_total;
-  unsigned long disk_used;
-  unsigned long disk_available;
+    const char *ip_address;
+    char hostname[256];
+    char cpu_model[256];
+    int cpu_cores;
+    unsigned long total_memory;
+    unsigned long used_memory;
+    unsigned long free_memory;
+    unsigned long disk_total;
+    unsigned long disk_used;
+    unsigned long disk_available;
 } system_info_t;
 
 
-
-
-#define NI_NUMERICHOST  1  // define the constant with the integer value 1
+#define NI_NUMERICHOST 1  // define the constant with the integer value 1
 #define NI_MAXHOST 1025
 
 #define NUM_THREADS 16 // Number of worker threads

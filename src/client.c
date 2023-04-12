@@ -1,99 +1,34 @@
 #include "client.h"
 
-
-
-void get_cpu_model(char *cpu_model) {
-    int cpu_info[4] = {0};
-
-#if defined(_WIN32)
-    __cpuid(cpu_info, 0x80000002);
-    memcpy(cpu_model, cpu_info, sizeof(cpu_info));
-    __cpuid(cpu_info, 0x80000003);
-    memcpy(cpu_model + 16, cpu_info, sizeof(cpu_info));
-    __cpuid(cpu_info, 0x80000004);
-    memcpy(cpu_model + 32, cpu_info, sizeof(cpu_info));
-#else
-    __cpuid(0x80000002, cpu_info[0], cpu_info[1], cpu_info[2], cpu_info[3]);
-    memcpy(cpu_model, cpu_info, sizeof(cpu_info));
-    __cpuid(0x80000003, cpu_info[0], cpu_info[1], cpu_info[2], cpu_info[3]);
-    memcpy(cpu_model + 16, cpu_info, sizeof(cpu_info));
-    __cpuid(0x80000004, cpu_info[0], cpu_info[1], cpu_info[2], cpu_info[3]);
-    memcpy(cpu_model + 32, cpu_info, sizeof(cpu_info));
-#endif
-    cpu_model[48] = '\0';
-}
-
-char *get_system_info() {
-    char hostname[256];
-#if defined(_WIN32)
-    DWORD bufSize = sizeof(hostname);
-    GetComputerNameA(hostname, &bufSize);
-#else
-    gethostname(hostname, sizeof(hostname));
-#endif
-
-    int cpu_cores;
-    char cpu_model[49];
-
-    unsigned long long total_memory;
-    unsigned long long used_memory;
-    unsigned long long free_memory;
-    unsigned long long disk_total;
-    unsigned long long disk_free;
-    unsigned long long disk_used;
-    unsigned long long disk_available;
-
-#if defined(_WIN32)
-    SYSTEM_INFO sys_info;
-    GetSystemInfo(&sys_info);
-    cpu_cores = sys_info.dwNumberOfProcessors;
-
-    MEMORYSTATUSEX mem_info;
-    mem_info.dwLength = sizeof(MEMORYSTATUSEX);
-    GlobalMemoryStatusEx(&mem_info);
-    total_memory = mem_info.ullTotalPhys / (1024 * 1024);
-    used_memory = (mem_info.ullTotalPhys - mem_info.ullAvailPhys) / (1024 * 1024);
-    free_memory = mem_info.ullAvailPhys / (1024 * 1024);
-
-    ULARGE_INTEGER lpFreeBytesAvailableToCaller, lpTotalNumberOfBytes, lpTotalNumberOfFreeBytes;
-    GetDiskFreeSpaceExA(NULL, &lpFreeBytesAvailableToCaller, &lpTotalNumberOfBytes, &lpTotalNumberOfFreeBytes);
-    disk_total = lpTotalNumberOfBytes.QuadPart / (1024 * 1024);
-    disk_used = (lpTotalNumberOfBytes.QuadPart - lpTotalNumberOfFreeBytes.QuadPart) / (1024 * 1024);
-    disk_free = lpTotalNumberOfFreeBytes.QuadPart / (1024 * 1024);
-    disk_available = lpFreeBytesAvailableToCaller.QuadPart / (1024 * 1024);
-#else
-    struct sysinfo sys_info;
-    sysinfo(&sys_info);
-
-    cpu_cores = sysconf(_SC_NPROCESSORS_ONLN);
-
-    total_memory = sys_info.totalram / (1024 * 1024);
-    used_memory = (sys_info.totalram - sys_info.freeram) / (1024 * 1024);
-    free_memory = sys_info.freeram / (1024 * 1024);
-
-    struct statvfs vfs;
-    statvfs("/", &vfs);
-    disk_total = (vfs.f_blocks * vfs.f_frsize) / (1024 * 1024);
-    disk_free = (vfs.f_bfree * vfs.f_frsize) / (1024 * 1024);
-    disk_used = disk_total - disk_free;
-    disk_available = (vfs.f_bavail * vfs.f_frsize) / (1024 * 1024);
-#endif
-    get_cpu_model(cpu_model);
-    char *json_data = (char *)malloc(1024 * sizeof(char));
-    snprintf(json_data, 1024,
-             "{"
-             "\"hostname\": \"%s\","
-             "\"cpu\": {\"model\": \"%s\", \"cores\": %d},"
-             "\"memory\": {\"total\": %llu, \"used\": %llu, \"free\": %llu},"
-             "\"disk\": {\"total\": %llu, \"used\": %llu, \"available\": %llu}"
-             "}",
-             hostname, cpu_model, cpu_cores, total_memory, used_memory, free_memory,
-             disk_total, disk_used, disk_available);
-    return json_data;
+double calculate_max_resources(int cpu_cores, long memory_mb) {
+    double cpu_cores_weight = 4.0;
+    double memory_weight = 2.0;
+    double max_resources = (cpu_cores * cpu_cores_weight * 1024.0) + (memory_mb * memory_weight);
+    return max_resources;
 }
 
 void evil_fetch() {
-    char *json_data = get_system_info();
-    printf("%s", json_data);
-    free(json_data);
+    int cpu_cores;
+    long memory_mb;
+    double max_resources;
+
+    #if defined(__linux__)
+        // Retrieve system resource information on Linux
+        cpu_cores = sysconf(_SC_NPROCESSORS_CONF);
+        memory_mb = sysconf(_SC_PHYS_PAGES) * sysconf(_SC_PAGE_SIZE) / 1024 / 1024; // Convert from bytes to megabytes
+    #elif defined(_WIN32)
+        // Retrieve system resource information on Windows
+        SYSTEM_INFO sys_info;
+        GetSystemInfo(&sys_info);
+        cpu_cores = sys_info.dwNumberOfProcessors;
+        MEMORYSTATUSEX mem_info;
+        mem_info.dwLength = sizeof(mem_info);
+        GlobalMemoryStatusEx(&mem_info);
+        memory_mb = mem_info.ullTotalPhys / 1024 / 1024; // Convert from bytes to megabytes
+    #endif
+
+    // Calculate maximum resources
+    max_resources = calculate_max_resources(cpu_cores, memory_mb);
+
+    printf("Max resources: %f MB\n", max_resources);
 }

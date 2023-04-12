@@ -14,7 +14,10 @@
     "string.h": "c",
     "stdlib.h": "c",
     "netfwd": "c",
-    "cpuid.h": "c"
+    "cpuid.h": "c",
+    "array": "c",
+    "string_view": "c",
+    "initializer_list": "c"
   },
   "C_Cpp.default.intelliSenseMode": "gcc-x86"
 }

@@ -1,21 +1,18 @@
-#ifndef CLIENT_H
-#define CLIENT_H
+#ifndef MAX_RESOURCES_H
+#define MAX_RESOURCES_H
 
 #include <stdio.h>
 #include <stdlib.h>
-#include <string.h>
 
-#if defined(_WIN32)
-#include <windows.h>
-#include <tchar.h>
-#include <intrin.h>
-#else
-#include <cpuid.h>
-#include <unistd.h>
-#include <sys/utsname.h>
-#include <sys/sysinfo.h>
-#include <sys/statvfs.h>
+#if defined(__linux__)
+    #include <unistd.h>
+    #include <sys/resource.h>
+#elif defined(_WIN32)
+    #include <windows.h>
 #endif
 
-void evil_fetch();
-#endif /* CLIENT_H */
+
+double calculate_max_resources(int cpu_cores, long memory_mb);
+void print_max_resources();
+
+#endif /* MAX_RESOURCES_H */
