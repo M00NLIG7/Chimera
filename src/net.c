@@ -1,5 +1,10 @@
 #include "net.h"
 
+
+MaxSystemInfo max_system_info = {0, {0}};
+pthread_mutex_t max_system_info_mutex = PTHREAD_MUTEX_INITIALIZER;
+
+
 // Parse system information from a remote host
 float *parse_system_info(const char *str) {
     float* max_resources_ptr = malloc(sizeof(float)); // allocate memory for the float pointer
@@ -27,13 +32,13 @@ void* spread_worker(void* data) {
         if (host_os == LINUX) {
             username = "root";
             spread_linux(host_ip, username, password);
+
         } else if (host_os == WINDOWS) {
             username = "Administrator";
         } else {
             username = "cisco";
         }
 
-        printf("%s\n", username);
     }
     free(data);
     return NULL;
@@ -55,10 +60,10 @@ char* remote_execution(const char* host, const char* username, const char* passw
     
     if(remote_os == LINUX) {
         #ifdef _WIN32
-            ret = snprintf(command_string, sizeof(command_string), "echo y | %s -ssh %s -l %s -pw %s -o ConnectTimeout=1 \"%s\"",
+            ret = snprintf(command_string, sizeof(command_string), "echo y | %s -ssh %s -l %s -pw %s -o ConnectTimeout=1 -o StrictHostKeyChecking=no\"%s\"",
                 PLINK_EXE_PATH, host, username, password, command);
         #else 
-            ret = snprintf(command_string, sizeof(command_string), "%s -p \"%s\" ssh -o ConnectTimeout=1 %s@%s \"%s\"",
+            ret = snprintf(command_string, sizeof(command_string), "%s -p \"%s\" ssh -o ConnectTimeout=1 -o StrictHostKeyChecking=no %s@%s \"%s\" 2>&1",
                 SSHPASS_PATH, password, username, host, command);
         #endif
         if (ret >= sizeof(command_string)) {
@@ -105,7 +110,8 @@ char* remote_execution(const char* host, const char* username, const char* passw
 
     // Read the output of the command into the buffer
     size_t bytes_read = fread(output_buffer, 1, MAX_COMMAND_SIZE, fp);
-    if (bytes_read == 0) {
+    if (bytes_read == 0 ) {
+        // Check for authenitcaiton fialure 
         // fprintf(stderr, "Failed to read command output\n");
         free(output_buffer);
         PCLOSE(fp);
@@ -123,6 +129,7 @@ char* remote_execution(const char* host, const char* username, const char* passw
     if (bytes_read >= MAX_COMMAND_SIZE) {
         bytes_read = MAX_COMMAND_SIZE - 1;
     }
+
     // Null-terminate the output buffer
     output_buffer[bytes_read] = '\0';
 
@@ -154,11 +161,24 @@ char* remote_execution(const char* host, const char* username, const char* passw
  *  
  */
 void spread_linux(const char* host, const char* username, const char* password) {
+    printf("[+] Spreading Chimera on %s.\n", host);
+    char* output = remote_execution(host, username, password, CURL_ONE_LINER, LINUX);
+    if (output != NULL) {
+        if(strstr(output, "Permission denied, please try again.") != NULL) {
+            printf("[-] Failed to spread Chimera on %s. Authentication failed.\n", host);
+            free(output);
+            return;
+        } else {
+            free(output);
+            output = NULL;
+        }
+    }
     // Check if the "Chimera" directory exists on the remote Linux machine
-    const char* check_chimera_dir_cmd = "if [ ! -d \"Chimera\" ]; then echo \"NOT_EXIST\"; fi";
-    char* output = remote_execution(host, username, password, check_chimera_dir_cmd, LINUX);
+    const char* check_chimera_dir_cmd = "sh -c 'if [ ! -d \"Chimera\" ]; then echo \"NOT_EXIST\"; fi' 2>&1";
+    output = remote_execution(host, username, password, check_chimera_dir_cmd, LINUX);
     
     if (output != NULL && strcmp(output, "NOT_EXIST\n") == 0) {
+
         // Download the zip file from the URL
         // curl -L -o chimera_linux.tar.gz https://github.com/M00NLIG7/Chimera/raw/master/chimera_linux.tar.gz
         const char* url = "https://github.com/M00NLIG7/Chimera/raw/master/chimera_linux.tar.gz";
@@ -174,7 +194,6 @@ void spread_linux(const char* host, const char* username, const char* password) 
 
         output = remote_execution(host, username, password, command_string, LINUX);
         if (output != NULL) {
-            printf("%s\n", output);
             free(output);
             output = NULL;
         }
@@ -190,7 +209,6 @@ void spread_linux(const char* host, const char* username, const char* password) 
 
         output = remote_execution(host, username, password, command_string, LINUX);
         if (output != NULL) {
-            printf("%s\n", output);
             free(output);
             output = NULL;
         }
@@ -221,7 +239,19 @@ void spread_linux(const char* host, const char* username, const char* password) 
 
         if (output != NULL) {
             float* p_system_info = parse_system_info(output);
-            printf("PARSED: %f", *p_system_info);
+
+            // Lock the mutex before updating the max_system_info structure
+            pthread_mutex_lock(&max_system_info_mutex);
+
+            if (*p_system_info > max_system_info.p_system_info) {
+                max_system_info.p_system_info = *p_system_info;
+                strncpy(max_system_info.ip, host, sizeof(max_system_info.ip) - 1);
+                max_system_info.ip[sizeof(max_system_info.ip) - 1] = '\0';
+            }
+
+            // Unlock the mutex after updating the max_system_info structure
+            pthread_mutex_unlock(&max_system_info_mutex);
+
             free(p_system_info);
             free(output);
             output = NULL;
@@ -229,7 +259,7 @@ void spread_linux(const char* host, const char* username, const char* password) 
     } else if (output == NULL) {
         // fprintf(stderr, "Failed to check Chimera directory on remote host.\n");
     } else {
-        printf("Chimera directory already exists on the remote host.\n");
+        printf("Chimera directory already exists on remote host: %s.\n", host);
     }
 
     if (output != NULL) {
@@ -269,6 +299,7 @@ void spread(const char* subnet, const char* password) {
     for (int i = 0; i < 254; i++) {
         pthread_join(threads[i], NULL);
     }
+    printf("System with highest p_system_info: %s (%f)\n", max_system_info.ip, max_system_info.p_system_info);
 }
 
 

